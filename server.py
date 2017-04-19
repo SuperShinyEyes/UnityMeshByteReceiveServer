@@ -56,6 +56,7 @@ class SampleServer(object):
         self.init_socket_bind()
         self.username = "SERVER"
         self.listner_socket_timeout_in_sec = timeout_in_sec
+        self.recv_mesh_timeout = 5
 
 
 
@@ -154,7 +155,19 @@ class SampleServer(object):
         '''
         buffer = b''
         while len(buffer) < mesh_size:
+            ready = select.select(
+                [socket],
+                [],
+                [],
+                self.recv_mesh_timeout
+            )
+
+            if not ready[0]:
+                print("Time out")
+                return -1
+
             buffer += socket.recv(1024)
+
         new_person = sample.Person()
         new_person.parse_from_bytes(buffer)
         print(new_person)
