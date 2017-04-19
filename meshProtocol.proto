@@ -8,6 +8,8 @@ https://holoscanner.github.io/2016/04/21/week-3-technical-framework.html
 
 ProtoBuffer Tutorial:
 https://auth0.com/blog/beating-json-performance-with-protobuf/
+http://pythonhosted.org/protobuf3/tutorial.html#prerequisites
+https://www.youtube.com/watch?v=Vs-nTZb7oj8
 */
 
 message Vec3D {
