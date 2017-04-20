@@ -2,6 +2,8 @@
 
 from struct import unpack
 import UnityMeshObjectModel
+import io
+
 '''
 /// <summary>
 /// Deserializes a list of Mesh objects from the provided byte array.
@@ -111,44 +113,67 @@ private static int[] ReadTriangleIndicies(BinaryReader reader, int triangleIndex
 }
 '''
 
+
 class EmptyByteError(Exception):
     pass
 
-def is_empty_byte(data):
-    return len(data) == 0
 
-def deserialize(stream):
-    '''
-    :param stream: byte 
-    :return: 
-    '''
-
-    meshes = []
-    # Two c# Int32: 4 * 2 = 8
-    header_size = 8
-    reader_pos = 0
-    stream_len = len(stream)
-    while stream_len - reader_pos >= header_size:
-        meshes.append(read_mesh(stream))
-
-def write_meshes(meshes):
-    '''
-    
-    :param meshes: 
-    :return: 
-    '''
-    from datetime import datetime
-    import os
-    time_format = '%Y-%m-%d-%a-%H:%M:%S'
-    filename = datetime.today().strftime(time_format) + '.obj'
-    filepath = os.path.join('objs', filename)
-    with open(filepath, 'w') as f:
-        i = 1
-        for mesh in meshes:
-            write_mesh(f, mesh)
+'''
+Debug constants
+'''
+DEBUG_MODE = True
 
 
-def write_mesh(stream: _io.TextIOWrapper, mesh: UnityMeshObjectModel.Mesh, index):
+def debug(msg):
+    if DEBUG_MODE:
+        print(msg)
+
+
+class UnityMeshByteHandler(object):
+    def __init__(self):
+        self.reader_pos = 0
+        self.meshes = []
+        # Two c# Int32: 4 * 2 = 8
+        self.header_size = 8
+        self.reader_pos = 0
+
+    def is_empty_byte(self, data):
+        return len(data) == 0
+
+    def get_stream_size(self, stream: io.TextIOWrapper):
+        stream_len = stream.seek(0, 2)
+        stream.seek(0, 0)
+        return stream_len
+
+    def deserialize(self, stream):
+        '''
+        :param stream: byte 
+        :return: 
+        '''
+        meshes = []
+        stream_len = self.get_stream_size(stream)
+        debug("stream_len: {}".format(stream_len))
+        while stream_len - self.reader_pos >= self.header_size:
+            meshes.append(self.read_mesh(stream))
+        self.write_meshes(meshes)
+
+    def write_meshes(self, meshes):
+        '''
+
+        :param meshes: 
+        :return: 
+        '''
+        from datetime import datetime
+        import os
+        time_format = '%Y-%m-%d-%a-%H:%M:%S'
+        filename = datetime.today().strftime(time_format) + '.obj'
+        filepath = os.path.join('objs', filename)
+        with open(filepath, 'w') as f:
+            i = 1
+            for mesh in meshes:
+                write_mesh(f, mesh)
+
+    def write_mesh(self, stream: io.TextIOWrapper, mesh: UnityMeshObjectModel.Mesh, index):
         header = 'o Object.{}'.format(index)
         stream.write(header)
 
@@ -159,70 +184,69 @@ def write_mesh(stream: _io.TextIOWrapper, mesh: UnityMeshObjectModel.Mesh, index
         stream.writelines(lines)
         stream.write("\n\n")
 
+    def read_mesh(self, stream):
+
+        vertex_count, triangle_index_count = self.read_mesh_header(stream)
+        vertices = read_vertices(stream, vertex_count)
+        triangle_indicies = read_triangle_indicies(stream, triangle_index_count)
+        mesh = UnityMeshObjectModel.Mesh(vertices, triangle_indicies)
+        return mesh
+
+    def read_mesh_header(self, stream) -> object:
+        '''
+        :param stream: 
+        :return: 
+        '''
+        vertex_count = self.read_int32(stream)
+        triangleIndexCount = self.read_int32(stream)
+        return vertex_count, triangleIndexCount
+
+    def read_vertices(self, stream, vertexCount):
+        '''
+        Vector3[] vertices = new Vector3[vertexCount];
+        :param vertexCount: 
+        :param stream: 
+        :return: 
+        '''
+        vertices = [
+            UnityMeshObjectModel.Vector3(
+                self.read_int32(stream),
+                self.read_int32(stream),
+                self.read_int32(stream)
+            ) for _ in range(vertexCount)
+        ]
+        return vertices
+
+    def read_triangle_indicies(self, stream, triangleIndexCount):
+        '''
+        Vector3[] vertices = new Vector3[vertexCount];
+        :param triangleIndexCount: 
+        :param stream: 
+        :return: 
+        '''
+        triangleIndicies = [
+            self.read_int32(stream) for _ in range(vertexCount)
+        ]
+        return triangleIndicies
+
+    def read_int32(self, stream):
+        '''
+        Read 4 byte from data
+        :param stream: 
+        :return: truncated data and int
+        '''
+        # if is_empty_byte(data):
+        #     raise EmptyByteError
+
+        int32, = unpack('i', stream.read(4))
+        self.reader_pos += 4
+        return int32
+
+    def run(self):
+        with open('bytes/5_34_00 PM.room') as f:
+            self.deserialize(f)
 
 
-
-def read_mesh(stream):
-
-    vertex_count, triangle_index_count = read_mesh_header(stream)
-    vertices = read_vertices(stream, vertex_count)
-    triangle_indicies = read_triangle_indicies(stream, triangle_index_count)
-    mesh = UnityMeshObjectModel.Mesh(vertices, triangle_indicies)
-    return mesh
-
-
-    
-
-def read_mesh_header(stream) -> object:
-    '''
-    :param stream: 
-    :return: 
-    '''
-    vertex_count = read_int32(stream)
-    triangleIndexCount = read_int32(stream)
-    return vertex_count, triangleIndexCount
-
-def read_vertices(stream, vertexCount):
-    '''
-    Vector3[] vertices = new Vector3[vertexCount];
-    :param vertexCount: 
-    :param stream: 
-    :return: 
-    '''
-    vertices = [
-        UnityMeshObjectModel.Vector3(
-            read_int32(stream),
-            read_int32(stream),
-            read_int32(stream)
-        ) for _ in range(vertexCount)
-    ]
-    return vertices
-
-def read_triangle_indicies(stream, triangleIndexCount):
-    '''
-    Vector3[] vertices = new Vector3[vertexCount];
-    :param triangleIndexCount: 
-    :param stream: 
-    :return: 
-    '''
-    triangleIndicies = [
-        read_int32(stream) for _ in range(vertexCount)
-    ]
-    return triangleIndicies
-
-
-
-
-
-
-def read_int32(stream):
-    '''
-    Read 4 byte from data
-    :param stream: 
-    :return: truncated data and int
-    '''
-    # if is_empty_byte(data):
-    #     raise EmptyByteError
-
-    int32, = unpack('i', stream.read(4))
-    return int32
+if __name__ == '__main__':
+    handler = UnityMeshByteHandler()
+    handler.run()

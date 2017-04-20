@@ -27,7 +27,17 @@ def get_int_and_byte():
     with open('int_and_byte.txt', 'w') as f:
         line = "{}\t{}".format(num, num_byte)
         f.write(line)
+
+    with open('int_and_byte.txt') as f:
+        print("read")
+        print(f.seek(0, 2))
+        print(f.readline())
+
+        print(f.seek(0, 0))
+        print(f.readline())
+        print("done")
+
     print('num: {}, num_byte: {}'.format(num, num_byte))
     return num, num_byte
 
-print(get_int_and_byte())
+get_int_and_byte()
