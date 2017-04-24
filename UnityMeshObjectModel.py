@@ -11,6 +11,8 @@ class Vector3(object):
 
 class Mesh(object):
 
-    def __init__(self, vertices, triangle_indicies):
+    def __init__(self, vertices, faces, norm):
         self.vertices = vertices
-        self.triangles = triangle_indicies
+        # self.triangles = triangle_indicies
+        self.faces = faces
+        self.norm = norm
