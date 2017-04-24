@@ -155,7 +155,7 @@ class UnityMeshByteHandler(object):
         debug("stream_len: {}".format(stream_len))
         while stream_len - self.reader_pos >= self.header_size:
             meshes.append(self.read_mesh(stream))
-        self.write_meshes(meshes)
+        # self.write_meshes(meshes)
 
     def write_meshes(self, meshes):
         '''
@@ -169,26 +169,26 @@ class UnityMeshByteHandler(object):
         filename = datetime.today().strftime(time_format) + '.obj'
         filepath = os.path.join('objs', filename)
         with open(filepath, 'w') as f:
-            i = 1
-            for mesh in meshes:
-                write_mesh(f, mesh)
+
+            for i in range(len(meshes)):
+                self.write_mesh(f, meshes[i], i+1)
 
     def write_mesh(self, stream: io.TextIOWrapper, mesh: UnityMeshObjectModel.Mesh, index):
-        header = 'o Object.{}'.format(index)
+        header = 'o Object.{}\n'.format(index)
         stream.write(header)
 
         # for v in mesh.vertices:
         #     line = "v {x} {y} {z}".format(x=v.x, y=v.y, z=v.z)
 
-        lines = ["v {x} {y} {z}".format(x=v.x, y=v.y, z=v.z) for v in mesh.vertices]
+        lines = ["v {x} {y} {z}\n".format(x=v.x, y=v.y, z=v.z) for v in mesh.vertices]
         stream.writelines(lines)
         stream.write("\n\n")
 
     def read_mesh(self, stream):
 
         vertex_count, triangle_index_count = self.read_mesh_header(stream)
-        vertices = read_vertices(stream, vertex_count)
-        triangle_indicies = read_triangle_indicies(stream, triangle_index_count)
+        vertices = self.read_vertices(stream, vertex_count)
+        triangle_indicies = self.read_triangle_indicies(stream, triangle_index_count)
         mesh = UnityMeshObjectModel.Mesh(vertices, triangle_indicies)
         return mesh
 
@@ -199,6 +199,7 @@ class UnityMeshByteHandler(object):
         '''
         vertex_count = self.read_int32(stream)
         triangleIndexCount = self.read_int32(stream)
+        debug('vertex_count: {}\ttriangleIndexCount: {}'.format(vertex_count , triangleIndexCount))
         return vertex_count, triangleIndexCount
 
     def read_vertices(self, stream, vertexCount):
@@ -210,9 +211,9 @@ class UnityMeshByteHandler(object):
         '''
         vertices = [
             UnityMeshObjectModel.Vector3(
-                self.read_int32(stream),
-                self.read_int32(stream),
-                self.read_int32(stream)
+                self.read_single(stream),
+                self.read_single(stream),
+                self.read_single(stream)
             ) for _ in range(vertexCount)
         ]
         return vertices
@@ -225,7 +226,7 @@ class UnityMeshByteHandler(object):
         :return: 
         '''
         triangleIndicies = [
-            self.read_int32(stream) for _ in range(vertexCount)
+            self.read_int32(stream) for _ in range(triangleIndexCount)
         ]
         return triangleIndicies
 
@@ -237,13 +238,34 @@ class UnityMeshByteHandler(object):
         '''
         # if is_empty_byte(data):
         #     raise EmptyByteError
+        # print(type(stream))
+        foo = stream.read(4)
+        # print(foo, type(foo))
 
-        int32, = unpack('i', stream.read(4))
+        # return "foo"
+        int32, = unpack('i', foo)
         self.reader_pos += 4
         return int32
 
+    def read_single(self, stream: io.TextIOWrapper):
+        '''
+        Read 4 byte from data
+        :param stream: 
+        :return: truncated data and int
+        '''
+        # if is_empty_byte(data):
+        #     raise EmptyByteError
+        # print(type(stream))
+        foo = stream.read(4)
+        # print(stream.tell(), foo, type(foo))
+
+        # return "foo"
+        single, = unpack('f', foo)
+        self.reader_pos += 4
+        return single
+
     def run(self):
-        with open('bytes/5_34_00 PM.room') as f:
+        with open('bytes/5_34_00 PM.room', 'rb') as f:
             self.deserialize(f)
 
 
