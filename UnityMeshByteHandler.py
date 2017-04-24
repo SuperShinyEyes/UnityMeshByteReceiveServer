@@ -4,6 +4,8 @@ from struct import unpack
 import UnityMeshObjectModel
 import io
 import numpy
+from datetime import datetime
+import os
 
 '''
 /// <summary>
@@ -130,6 +132,7 @@ def debug(msg):
         print(msg)
 
 
+
 class UnityMeshByteHandler(object):
     def __init__(self):
         self.reader_pos = 0
@@ -156,21 +159,24 @@ class UnityMeshByteHandler(object):
         debug("stream_len: {}".format(stream_len))
         while stream_len - self.reader_pos >= self.header_size:
             meshes.append(self.read_mesh(stream))
-        self.write_meshes(meshes)
+        self.reader_pos = 0
+        return meshes
 
-    def write_meshes(self, meshes):
+
+    def write_meshes(self, meshes, subdir_name=None):
         '''
 
         :param meshes: 
         :return: 
         '''
-        from datetime import datetime
-        import os
-        time_format = '%Y-%m-%d-%a-%H:%M:%S'
-        filename = datetime.today().strftime(time_format) + '.obj'
-        filepath = os.path.join('objs', filename)
-        with open(filepath, 'w') as f:
 
+        time_format = '%Y-%m-%d-%a-%H:%M:%S:%f'
+        filename = datetime.today().strftime(time_format) + '.obj'
+        if subdir_name:
+            filepath = os.path.join('objs', subdir_name, filename)
+        else:
+            filepath = os.path.join('objs', filename)
+        with open(filepath, 'w') as f:
             for i in range(len(meshes)):
                 self.write_mesh(f, meshes[i], i+1)
 
@@ -327,9 +333,45 @@ class UnityMeshByteHandler(object):
         self.reader_pos += 4
         return single
 
+    def get_byte_filenames(self, basepath=None):
+        this_script_name = os.path.basename(__file__)
+        print("this_script_name", this_script_name)
+        print("__file__", __file__)
+        if not basepath:
+            basepath = os.path.dirname(__file__)
+            # basepath = Automator.get_base_path(os.path.abspath(this_script_name))
+        mesh_byte_dir = os.path.join(basepath, 'mesh_bytes')
+        print("basepath", mesh_byte_dir)
+        all_file_names = os.listdir(mesh_byte_dir)
+        all_file_names = [os.path.join(mesh_byte_dir, n) for n in all_file_names]
+        return self.remove_ignored_items_and_dir(all_file_names)
+
+    def remove_ignored_items_and_dir(self, file_names):
+        # print("Constants.ignored", Constants.ignored)
+        ignored = ['.ds_store']
+        return [
+            i for i in file_names
+            if not os.path.isdir(i)  # Remove directories
+               and os.path.basename(i).lower() not in ignored  # Ignore unnecessaries
+        ]
+
     def run(self):
-        with open('bytes/5_34_00 PM.room', 'rb') as f:
-            self.deserialize(f)
+        # filepath = 'bytes/5_34_00 PM.room'
+
+        byte_filenames = self.get_byte_filenames()
+        time_format = '%Y-%m-%d-%a-%H:%M:%S:%f'
+        subdir_name = datetime.today().strftime(time_format)
+        os.makedirs(os.path.join('objs', subdir_name))
+        for filepath in byte_filenames:
+            # filepath = 'mesh_bytes/2017-04-24-Mon-16:06:47'
+            with open(filepath, 'rb') as f:
+                meshes = self.deserialize(f)
+
+                self.write_meshes(meshes, subdir_name=subdir_name)
+            os.remove(filepath)
+
+
+
 
 
 if __name__ == '__main__':
