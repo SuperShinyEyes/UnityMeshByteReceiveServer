@@ -9,6 +9,9 @@ random.seed()
 def generate_int_and_byte():
     num = random.randint(0,10000000)
     num_byte = num.to_bytes(4, 'little')
+    from struct import calcsize
+    print(len(num_byte))
+    print(calcsize('i'))
     with open('int_as_byte', 'wb') as f:
         f.write(num_byte)
     with open('int.txt', 'w') as f:
@@ -19,6 +22,8 @@ def generate_int_and_byte():
         f.write(line)
     print('num: {}, num_byte: {}'.format(num, num_byte))
     return num, num_byte
+
+generate_int_and_byte()
 
 class ByteTest(unittest.TestCase):
 
@@ -41,6 +46,7 @@ class ByteTest(unittest.TestCase):
         with open('int.txt') as f:
             num = int(f.readline())
         with open('int_as_byte', 'rb') as f:
-            num_byte = read_int32(f)
+            handler = UnityMeshByteHandler()
+            num_byte = handler.read_int32(f)
 
         self.assertEqual(num, num_byte, "Not equal")
