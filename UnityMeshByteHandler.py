@@ -125,9 +125,9 @@ class EmptyByteError(Exception):
 Debug constants
 '''
 DEBUG_MODE = True
+CALCULATE_NORMALS = True
 
-
-def debug(msg):
+def debug(msg=''):
     if DEBUG_MODE:
         print(msg)
 
@@ -145,8 +145,8 @@ class UnityMeshByteHandler(object):
         return len(data) == 0
 
     def get_stream_size(self, stream: io.TextIOWrapper):
-        stream_len = stream.seek(0, 2)
-        stream.seek(0, 0)
+        stream_len = stream.seek(0, 2)      # Go to the end of the stream
+        stream.seek(0, 0)                   # Go back to the beginning
         return stream_len
 
     def deserialize(self, stream):
@@ -158,7 +158,9 @@ class UnityMeshByteHandler(object):
         stream_len = self.get_stream_size(stream)
         debug("stream_len: {}".format(stream_len))
         while stream_len - self.reader_pos >= self.header_size:
+        # while stream_len - self.reader_pos >= 0:
             meshes.append(self.read_mesh(stream))
+            debug()
         self.reader_pos = 0
         return meshes
 
@@ -203,30 +205,35 @@ class UnityMeshByteHandler(object):
 
     def read_mesh(self, stream):
 
-        vertex_count, triangle_index_count = self.read_mesh_header(stream)
+        vertex_count, normal_count, triangle_index_count = self.read_mesh_header(stream)
+        # return
         vertices = self.read_vertices(stream, vertex_count)
         # triangle_indicies = self.read_triangle_indicies(stream, triangle_index_count)
-
+        normals = self.read_normals(stream, normal_count)
 
         faces = self.read_faces(stream, triangle_index_count)
-        # Create a zeroed array with the same type and shape as our vertices i.e., per vertex normal
-        norm = numpy.zeros(vertices.shape, dtype=vertices.dtype)
-        # Create an indexed view into the vertex array using the array of three indices for triangles
-        tris = vertices[faces]
-        # Calculate the normal for all the triangles, by taking the cross product of the vectors v1-v0, and v2-v0 in each triangle
-        n = numpy.cross(tris[::, 1] - tris[::, 0], tris[::, 2] - tris[::, 0])
-        # n is now an array of normals per triangle. The length of each normal is dependent the vertices,
-        # we need to normalize these, so that our next step weights each normal equally.
-        self.normalize_v3(n)
-        # now we have a normalized array of normals, one per triangle, i.e., per triangle normals.
-        # But instead of one per triangle (i.e., flat shading), we add to each vertex in that triangle,
-        # the triangles' normal. Multiple triangles would then contribute to every vertex, so we need to normalize again afterwards.
-        # The cool part, we can actually add the normals through an indexed view of our (zeroed) per vertex normal array
-        norm[faces[:, 0]] += n
-        norm[faces[:, 1]] += n
-        norm[faces[:, 2]] += n
 
-        mesh = UnityMeshObjectModel.Mesh(vertices, faces, norm)
+        if CALCULATE_NORMALS:
+            # Create a zeroed array with the same type and shape as our vertices i.e., per vertex normal
+            norm = numpy.zeros(vertices.shape, dtype=vertices.dtype)
+            # Create an indexed view into the vertex array using the array of three indices for triangles
+            tris = vertices[faces]
+            # Calculate the normal for all the triangles, by taking the cross product of the vectors v1-v0, and v2-v0 in each triangle
+            n = numpy.cross(tris[::, 1] - tris[::, 0], tris[::, 2] - tris[::, 0])
+            # n is now an array of normals per triangle. The length of each normal is dependent the vertices,
+            # we need to normalize these, so that our next step weights each normal equally.
+            self.normalize_v3(n)
+            # now we have a normalized array of normals, one per triangle, i.e., per triangle normals.
+            # But instead of one per triangle (i.e., flat shading), we add to each vertex in that triangle,
+            # the triangles' normal. Multiple triangles would then contribute to every vertex, so we need to normalize again afterwards.
+            # The cool part, we can actually add the normals through an indexed view of our (zeroed) per vertex normal array
+            norm[faces[:, 0]] += n
+            norm[faces[:, 1]] += n
+            norm[faces[:, 2]] += n
+
+            mesh = UnityMeshObjectModel.Mesh(vertices, faces, norm)
+        else:
+            mesh = UnityMeshObjectModel.Mesh(vertices, faces, normals)
         return mesh
 
     def read_mesh_header(self, stream) -> object:
@@ -235,9 +242,11 @@ class UnityMeshByteHandler(object):
         :return: 
         '''
         vertex_count = self.read_int32(stream)
+        normal_count = self.read_int32(stream)
         triangleIndexCount = self.read_int32(stream)
-        debug('vertex_count: {}\ttriangleIndexCount: {}'.format(vertex_count , triangleIndexCount))
-        return vertex_count, triangleIndexCount
+        debug('vertex_count: {}\nnormal_count:{}\ntriangleIndexCount: {}'.format(vertex_count, normal_count,
+                                                                                 triangleIndexCount))
+        return vertex_count, normal_count , triangleIndexCount
 
     def read_vertices(self, stream, vertexCount):
         '''
@@ -370,8 +379,17 @@ class UnityMeshByteHandler(object):
                 self.write_meshes(meshes, subdir_name=subdir_name)
             os.remove(filepath)
 
-
-
+    def read_normals(self, stream, normal_count):
+        faces = numpy.array([
+            [
+                self.read_single(stream),
+                self.read_single(stream),
+                self.read_single(stream)
+            ]
+            for _ in range(normal_count)
+        ])
+        print(len(faces), "faces")
+        return faces
 
 
 if __name__ == '__main__':

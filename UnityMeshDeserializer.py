@@ -85,10 +85,11 @@ class UnityMeshByteHandler(object):
 
     def read_mesh(self, stream):
 
-        vertex_count, triangle_index_count = self.read_mesh_header(stream)
+        vertex_count, normal_count, triangle_index_count = self.read_mesh_header(stream)
+        return
         vertices = self.read_vertices(stream, vertex_count)
         # triangle_indicies = self.read_triangle_indicies(stream, triangle_index_count)
-
+        normals = self.read_normals(stream, normal_count)
 
         faces = self.read_faces(stream, triangle_index_count)
         # Create a zeroed array with the same type and shape as our vertices i.e., per vertex normal
@@ -117,11 +118,35 @@ class UnityMeshByteHandler(object):
         :return: 
         '''
         vertex_count = self.read_int32(stream)
+        normal_count = self.read_int32(stream)
         triangleIndexCount = self.read_int32(stream)
-        debug('vertex_count: {}\ttriangleIndexCount: {}'.format(vertex_count , triangleIndexCount))
-        return vertex_count, triangleIndexCount
+        debug('vertex_count: {}\nnormal_count:{}\ntriangleIndexCount: {}'.format(vertex_count , normal_count,triangleIndexCount))
+        return vertex_count, normal_count, triangleIndexCount
 
     def read_vertices(self, stream, vertexCount):
+        '''
+        Vector3[] vertices = new Vector3[vertexCount];
+        :param vertexCount: 
+        :param stream: 
+        :return: 
+        '''
+        # vertices = [
+        #     UnityMeshObjectModel.Vector3(
+        #         self.read_single(stream),
+        #         self.read_single(stream),
+        #         self.read_single(stream)
+        #     ) for _ in range(vertexCount)
+        # ]
+        vertices = numpy.array([
+            [
+                self.read_single(stream),
+                self.read_single(stream),
+                self.read_single(stream)
+            ] for _ in range(vertexCount)
+        ])
+        return vertices
+
+    def read_normals(self, stream, vertexCount):
         '''
         Vector3[] vertices = new Vector3[vertexCount];
         :param vertexCount: 
