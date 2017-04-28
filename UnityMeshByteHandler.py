@@ -91,7 +91,6 @@ class UnityMeshByteHandler(object):
 
         lines = ["f {x}//{x} {y}//{y} {z}//{z}\n".format(x=v[0], y=v[1], z=v[2]) for v in mesh.faces]
         stream.writelines(lines)
-        stream.write("\n\n")
         debug(mesh.faces)
 
 
