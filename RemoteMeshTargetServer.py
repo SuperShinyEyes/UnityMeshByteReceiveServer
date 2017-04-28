@@ -32,6 +32,7 @@ class RemoteMeshTarget(object):
         self.host = host
         self.host_port = host_port
         self.socket = None
+        self.num_received_meshes = 0
 
 
     def close(self):
@@ -101,7 +102,8 @@ class RemoteMeshTarget(object):
 
         data_size = await self.read_data_size(socket)
         data_buffer = b''
-        print("Mesh size: {}".format(data_size))
+        self.num_received_meshes += 1
+        print("#{}. Mesh size: {}".format(self.num_received_meshes, data_size))
 
         while len(data_buffer) < data_size:
             data_buffer += await socket.recv(data_size - len(data_buffer))

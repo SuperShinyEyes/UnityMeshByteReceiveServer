@@ -17,15 +17,4 @@ pip install protobuf3
 protoc --python3_out=$DEST_DIR foo.proto
 ```
 
-alias less='less -r'
-02	# --show-control-chars: help showing Korean or accented characters
-03	alias ls='ls -F --color --show-control-chars'
-04	alias ll='ls -l'
-05	alias gs='git status '
-06	alias ga='git add '
-07	alias gb='git branch '
-08	alias gc='git commit'
-09	alias gd='git diff'
-10	alias go='git checkout '
-11	alias gk='gitk --all&'
-12	alias gx='gitx --all'
+

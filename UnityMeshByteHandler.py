@@ -154,7 +154,8 @@ class UnityMeshByteHandler(object):
         '''
         vertices = numpy.array([
             [
-                self.read_single(stream),
+                ## Flip horizontally
+                -self.read_single(stream),
                 self.read_single(stream),
                 self.read_single(stream)
             ] for _ in range(vertexCount)
