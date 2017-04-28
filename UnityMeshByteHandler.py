@@ -7,115 +7,6 @@ import numpy
 from datetime import datetime
 import os
 
-'''
-/// <summary>
-/// Deserializes a list of Mesh objects from the provided byte array.
-/// </summary>
-/// <param name="data">Binary data to be deserialized into a list of Mesh objects.</param>
-/// <returns>List of Mesh objects.</returns>
-public static IEnumerable<Mesh> Deserialize(byte[] data)
-{
-    List<Mesh> meshes = new List<Mesh>();
-
-    using (MemoryStream stream = new MemoryStream(data))
-    {
-        using (BinaryReader reader = new BinaryReader(stream))
-        {
-            while (reader.BaseStream.Length - reader.BaseStream.Position >= HeaderSize)
-            {
-                meshes.Add(ReadMesh(reader));
-            }
-        }
-    }
-
-    return meshes;
-}
-
-/// <summary>
-/// Reads a single Mesh object from the data stream.
-/// </summary>
-/// <param name="reader">BinaryReader representing the data stream.</param>
-/// <returns>Mesh object read from the stream.</returns>
-private static Mesh ReadMesh(BinaryReader reader)
-  {
-      SysDiag.Debug.Assert(reader != null);
-
-      int vertexCount = 0;
-       int triangleIndexCount = 0;
-
-       // Read the mesh data.
-       ReadMeshHeader(reader, out vertexCount, out triangleIndexCount);
-       Vector3[] vertices = ReadVertices(reader, vertexCount);
-       int[] triangleIndices = ReadTriangleIndicies(reader, triangleIndexCount);
-
-       // Create the mesh.
-       Mesh mesh = new Mesh();
-       mesh.vertices = vertices;
-       mesh.triangles = triangleIndices;
-       // Reconstruct the normals from the vertices and triangles.
-       mesh.RecalculateNormals();
-
-       return mesh;
-  }
-
-/// <summary>
-/// Reads a mesh header from the data stream.
-/// </summary>
-/// <param name="reader">BinaryReader representing the data stream.</param>
-/// <param name="vertexCount">Count of vertices in the mesh.</param>
-/// <param name="triangleIndexCount">Count of triangle indices in the mesh.</param>
-private static void ReadMeshHeader(BinaryReader reader, out int vertexCount, out int triangleIndexCount)
-  {
-      SysDiag.Debug.Assert(reader != null);
-
-      vertexCount = reader.ReadInt32();
-      triangleIndexCount = reader.ReadInt32();
-  }
-
-
-  /// <summary>
-  /// Reads a mesh's vertices from the data stream.
-  /// </summary>
-  /// <param name="reader">BinaryReader representing the data stream.</param>
-  /// <param name="vertexCount">Count of vertices to read.</param>
-  /// <returns>Array of Vector3 structures representing the mesh's vertices.</returns>
-  private static Vector3[] ReadVertices(BinaryReader reader, int vertexCount)
-  {
-      SysDiag.Debug.Assert(reader != null);
-
-      Vector3[] vertices = new Vector3[vertexCount];
-
-      for (int i = 0; i < vertices.Length; i++)
-      {
-          vertices[i] = new Vector3(reader.ReadSingle(),
-                                  reader.ReadSingle(),
-                                  reader.ReadSingle());
-      }
-
-      return vertices;
-  }
-
-/// <summary>
-/// Reads the vertex indices that represent a mesh's triangles from the data stream
-/// </summary>
-/// <param name="reader">BinaryReader representing the data stream.</param>
-/// <param name="triangleIndexCount">Count of indices to read.</param>
-/// <returns>Array of integers that describe how the vertex indices form triangles.</returns>
-private static int[] ReadTriangleIndicies(BinaryReader reader, int triangleIndexCount)
-{
-  SysDiag.Debug.Assert(reader != null);
-
-  int[] triangleIndices = new int[triangleIndexCount];
-
-  for (int i = 0; i < triangleIndices.Length; i++)
-  {
-      triangleIndices[i] = reader.ReadInt32();
-  }
-
-  return triangleIndices;
-}
-'''
-
 
 class EmptyByteError(Exception):
     pass
@@ -206,16 +97,19 @@ class UnityMeshByteHandler(object):
 
     def read_mesh(self, stream):
 
-        vertex_count, normal_count, triangle_index_count = self.read_mesh_header(stream)
+        vertex_count, triangle_index_count = self.read_mesh_header(stream)
         # return
         vertices = self.read_vertices(stream, vertex_count)
         # triangle_indicies = self.read_triangle_indicies(stream, triangle_index_count)
-        normals = self.read_normals(stream, normal_count)
+        # normals = self.read_normals(stream, normal_count)
 
+        # For unknown reason, you must pad 1 to every face elements.
+        # However you still need the original faces for calculating the normals
         faces = self.read_faces(stream, triangle_index_count)
+        faces_for_norm = numpy.copy(faces)
+        faces += 1
 
         if CALCULATE_NORMALS:
-            faces_for_norm = faces - 1
             # Create a zeroed array with the same type and shape as our vertices i.e., per vertex normal
             norm = numpy.zeros(vertices.shape, dtype=vertices.dtype)
             # Create an indexed view into the vertex array using the array of three indices for triangles
@@ -235,7 +129,7 @@ class UnityMeshByteHandler(object):
 
             mesh = UnityMeshObjectModel.Mesh(vertices, faces, norm)
         else:
-            mesh = UnityMeshObjectModel.Mesh(vertices, faces, normals)
+            mesh = UnityMeshObjectModel.Mesh(vertices, faces, [])
         return mesh
 
     def read_mesh_header(self, stream) -> object:
@@ -244,11 +138,13 @@ class UnityMeshByteHandler(object):
         :return: 
         '''
         vertex_count = self.read_int32(stream)
-        normal_count = self.read_int32(stream)
+        # normal_count = self.read_int32(stream)
         triangleIndexCount = self.read_int32(stream)
-        debug('vertex_count: {}\nnormal_count:{}\ntriangleIndexCount: {}'.format(vertex_count, normal_count,
+        # debug('vertex_count: {}\nnormal_count:{}\ntriangleIndexCount: {}'.format(vertex_count, normal_count,
+        #                                                                          triangleIndexCount))
+        debug('vertex_count: {}\ntriangleIndexCount: {}'.format(vertex_count,
                                                                                  triangleIndexCount))
-        return vertex_count, normal_count , triangleIndexCount
+        return vertex_count, triangleIndexCount
 
     def read_vertices(self, stream, vertexCount):
         '''
@@ -257,13 +153,6 @@ class UnityMeshByteHandler(object):
         :param stream: 
         :return: 
         '''
-        # vertices = [
-        #     UnityMeshObjectModel.Vector3(
-        #         self.read_single(stream),
-        #         self.read_single(stream),
-        #         self.read_single(stream)
-        #     ) for _ in range(vertexCount)
-        # ]
         vertices = numpy.array([
             [
                 self.read_single(stream),
@@ -282,9 +171,9 @@ class UnityMeshByteHandler(object):
         '''
         faces = numpy.array([
             [
-                self.read_int32(stream) + 1,
-                self.read_int32(stream) + 1,
-                self.read_int32(stream) + 1
+                self.read_int32(stream),
+                self.read_int32(stream),
+                self.read_int32(stream)
             ]
             for _ in range(triangleIndexCount//3)
         ])
@@ -316,13 +205,7 @@ class UnityMeshByteHandler(object):
         :param stream: 
         :return: truncated data and int
         '''
-        # if is_empty_byte(data):
-        #     raise EmptyByteError
-        # print(type(stream))
         foo = stream.read(4)
-        # print(foo, type(foo))
-
-        # return "foo"
         int32, = unpack('i', foo)
         self.reader_pos += 4
         return int32
@@ -333,13 +216,7 @@ class UnityMeshByteHandler(object):
         :param stream: 
         :return: truncated data and int
         '''
-        # if is_empty_byte(data):
-        #     raise EmptyByteError
-        # print(type(stream))
         foo = stream.read(4)
-        # print(stream.tell(), foo, type(foo))
-
-        # return "foo"
         single, = unpack('f', foo)
         self.reader_pos += 4
         return single
