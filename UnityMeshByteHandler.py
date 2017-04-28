@@ -15,7 +15,7 @@ class EmptyByteError(Exception):
 '''
 Debug constants
 '''
-DEBUG_MODE = True
+DEBUG_MODE = False
 # CALCULATE_NORMALS = False
 CALCULATE_NORMALS = True
 
@@ -48,11 +48,11 @@ class UnityMeshByteHandler(object):
         '''
         meshes = []
         stream_len = self.get_stream_size(stream)
-        debug("stream_len: {}".format(stream_len))
+        print("stream_len: {}".format(stream_len))
         while stream_len - self.reader_pos >= self.header_size:
         # while stream_len - self.reader_pos >= 0:
             meshes.append(self.read_mesh(stream))
-            debug()
+            print()
         self.reader_pos = 0
         return meshes
 
