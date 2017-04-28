@@ -125,6 +125,7 @@ class EmptyByteError(Exception):
 Debug constants
 '''
 DEBUG_MODE = True
+# CALCULATE_NORMALS = False
 CALCULATE_NORMALS = True
 
 def debug(msg=''):
@@ -214,10 +215,11 @@ class UnityMeshByteHandler(object):
         faces = self.read_faces(stream, triangle_index_count)
 
         if CALCULATE_NORMALS:
+            faces_for_norm = faces - 1
             # Create a zeroed array with the same type and shape as our vertices i.e., per vertex normal
             norm = numpy.zeros(vertices.shape, dtype=vertices.dtype)
             # Create an indexed view into the vertex array using the array of three indices for triangles
-            tris = vertices[faces]
+            tris = vertices[faces_for_norm]
             # Calculate the normal for all the triangles, by taking the cross product of the vectors v1-v0, and v2-v0 in each triangle
             n = numpy.cross(tris[::, 1] - tris[::, 0], tris[::, 2] - tris[::, 0])
             # n is now an array of normals per triangle. The length of each normal is dependent the vertices,
@@ -227,9 +229,9 @@ class UnityMeshByteHandler(object):
             # But instead of one per triangle (i.e., flat shading), we add to each vertex in that triangle,
             # the triangles' normal. Multiple triangles would then contribute to every vertex, so we need to normalize again afterwards.
             # The cool part, we can actually add the normals through an indexed view of our (zeroed) per vertex normal array
-            norm[faces[:, 0]] += n
-            norm[faces[:, 1]] += n
-            norm[faces[:, 2]] += n
+            norm[faces_for_norm[:, 0]] += n
+            norm[faces_for_norm[:, 1]] += n
+            norm[faces_for_norm[:, 2]] += n
 
             mesh = UnityMeshObjectModel.Mesh(vertices, faces, norm)
         else:
@@ -280,9 +282,9 @@ class UnityMeshByteHandler(object):
         '''
         faces = numpy.array([
             [
-                self.read_int32(stream),
-                self.read_int32(stream),
-                self.read_int32(stream)
+                self.read_int32(stream) + 1,
+                self.read_int32(stream) + 1,
+                self.read_int32(stream) + 1
             ]
             for _ in range(triangleIndexCount//3)
         ])

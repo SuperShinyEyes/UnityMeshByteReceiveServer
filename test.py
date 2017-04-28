@@ -1,43 +1,35 @@
 #!/usr/bin/env python3
+import os
+import itertools
+import types
+def get_mesh_file_lines(dir_name):
+    # dir_name = 'unittest_objs_reference/'
+    all_file_names = os.listdir(dir_name)
+    mesh_file_name = [i for i in all_file_names if i[-3:] == "obj"][0]
+    mesh_file_path = os.path.join(dir_name, mesh_file_name)
+    with open(mesh_file_path) as f:
+        return f.readlines()
 
-import unittest
-from struct import unpack
-from sys import getsizeof
-import random
+def get_vertices_received():
+    lines = get_mesh_file_lines('unittest_objs_received/')
+    lines = [l.split() for l in lines if l[0] == 'v']
+    lines = list(itertools.chain.from_iterable(lines))
+    lines = [float(i) for i in lines]
+    return lines
 
-num = 2554
-num_byte = num.to_bytes(2, 'little')
-print(num_byte)
-print(len(num_byte))
-print(getsizeof(num_byte))
-print(getsizeof(num))
-print(getsizeof(4))
-# num_from_byte_to_int = unpack('i', num_byte)
-# self.assertEqual(num, num_from_byte_to_int, "Not equal")
 
-def get_int_and_byte():
-    num = random.randint(0,10000000)
-    num_byte = num.to_bytes(4, 'little')
-    with open('int_as_byte', 'wb') as f:
-        f.write(num_byte)
-    with open('int.txt', 'w') as f:
-        print(type(f))
-        f.write(str(num))
+def get_vertices_reference():
+    lines = get_mesh_file_lines('unittest_objs_reference/')
+    print(lines)
+    lines = lines[:lines.index("ppp\n")]
+    lines = [l.split() for l in lines]
+    lines = list(itertools.chain.from_iterable(lines))
+    lines = [float(i) for i in lines]
+    return lines
 
-    with open('int_and_byte.txt', 'w') as f:
-        line = "{}\t{}".format(num, num_byte)
-        f.write(line)
 
-    with open('int_and_byte.txt') as f:
-        print("read")
-        print(f.seek(0, 2))
-        print(f.readline())
-
-        print(f.seek(0, 0))
-        print(f.readline())
-        print("done")
-
-    print('num: {}, num_byte: {}'.format(num, num_byte))
-    return num, num_byte
-
-get_int_and_byte()
+if __name__ == '__main__':
+    lines = get_vertices_reference()
+    print(lines)
+    print(type(lines[0]))
+    print(isinstance(lines[0], float))
